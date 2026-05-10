@@ -2,6 +2,12 @@
 name = "rust-lisp"
 version = "0.1.0"
 edition = "2024"
+description = "A simple LISP interpreter"
+homepage = "https://github.com/sharmuz/rust-lisp"
+repository = "https://github.com/sharmuz/rust-lisp"
+license = "MIT OR Apache-2.0"
+keywords = ["lisp"]
+categories = ["interpreters"]
 
 [dependencies]
 

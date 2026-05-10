@@ -22,6 +22,9 @@ fn tokenize(input: &str) -> Vec<Token> {
             t.push(ch);
         }
     }
+    if !t.is_empty() {
+        tokens.push(Token::from(t.clone()));
+    }
 
     tokens
 }
@@ -74,8 +77,17 @@ mod test {
     use super::*;
 
     #[test]
-    fn tokenize_basic_expr() {
-        let expr = "(* 3 (+ 1 2))";
+    fn tokenize_single_atom() {
+        let input = "28";
+        let expected = vec![Token::Atom(Atom::Number(28))];
+        let tokens = tokenize(input);
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn tokenize_basic_form() {
+        let input = "(* 3 (+ 1 2))";
         let expected = vec![
             Token::OpenBracket,
             Token::Atom(Atom::Symbol("*".to_string())),
@@ -87,7 +99,7 @@ mod test {
             Token::CloseBracket,
             Token::CloseBracket,
         ];
-        let tokens = tokenize(expr);
+        let tokens = tokenize(input);
 
         assert_eq!(tokens, expected);
     }

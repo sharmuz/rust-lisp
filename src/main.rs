@@ -8,9 +8,14 @@ fn tokenize(input: &str) -> Vec<Token> {
     let mut tokens: Vec<Token> = Vec::new();
     let mut t: Vec<char> = Vec::new();
     let brackets = &['(', ')'];
+    let mut is_string = false;
 
     for ch in input.chars() {
-        if brackets.contains(&ch) || ch.is_whitespace() {
+        if ch == '"' {
+            is_string = !is_string;
+        }
+        let is_delimeter = brackets.contains(&ch) || ch.is_whitespace();
+        if is_delimeter && !is_string {
             if !t.is_empty() {
                 tokens.push(Token::from(t.clone()));
                 t.clear();
@@ -97,6 +102,20 @@ mod test {
             Token::Atom(Atom::Number(1)),
             Token::Atom(Atom::Number(2)),
             Token::CloseBracket,
+            Token::CloseBracket,
+        ];
+        let tokens = tokenize(input);
+
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn tokenize_string_containing_delims() {
+        let input = "(print \"hello world :)\")";
+        let expected = vec![
+            Token::OpenBracket,
+            Token::Atom(Atom::Symbol("print".to_string())),
+            Token::Atom(Atom::String("hello world :)".to_string())),
             Token::CloseBracket,
         ];
         let tokens = tokenize(input);

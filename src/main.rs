@@ -7,6 +7,7 @@ fn main() {
     println!("Expression is: {expr:?}");
 }
 
+/// Generates a sequence of tokens representing the input expression.
 fn tokenize(input: &str) -> Vec<Token> {
     let mut tokens: Vec<Token> = Vec::new();
     let mut t: Vec<char> = Vec::new();
@@ -37,12 +38,16 @@ fn tokenize(input: &str) -> Vec<Token> {
     tokens
 }
 
+/// A LISP S-expression.
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum Expr {
     Atom(Atom),
     List(List),
 }
 
+/// Creates an Expr from a sequence of Tokens.
+///
+/// Panics if the tokens do not represent a valid LISP expression.
 #[allow(clippy::fallible_impl_from)]
 impl From<Vec<Token>> for Expr {
     fn from(tokens: Vec<Token>) -> Self {

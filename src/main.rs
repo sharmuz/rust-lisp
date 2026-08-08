@@ -1,10 +1,14 @@
+use std::error::Error;
+
 fn main() {
-    let input = "(first (list 1 (+ 2 3) 9))";
+    let input = "(+ (+ 1 2) 3)";
     println!("Input is: {input}");
     let tokens = tokenize(input);
     println!("Tokens are: {tokens:?}");
     let expr = Expr::from(tokens);
     println!("Expression is: {expr:?}");
+    let res = expr.eval().unwrap();
+    println!("Result is: {res}");
 }
 
 /// Generates a sequence of tokens representing the input expression.
@@ -43,6 +47,29 @@ fn tokenize(input: &str) -> Vec<Token> {
 enum Expr {
     Atom(Atom),
     List(List),
+}
+
+impl Expr {
+    fn eval(&self) -> Result<isize, Box<dyn Error>> {
+        match self {
+            Self::Atom(a) => match a {
+                Atom::Number(n) => Ok(n.clone()),
+                _ => panic!("Invalid!"),
+            },
+            Self::List(list) => {
+                match list {
+                    List::Form(f) => Ok(f.args.iter().fold(0, |acc, x| match x {
+                        Self::Atom(a) => match a {
+                            Atom::Number(n) => acc + n,
+                            _ => panic!("Invalid!"),
+                        },
+                        _ => panic!("Invalid!")
+                    })),
+                    List::Data(_) => panic!("Invalid"),
+                }
+            }
+        }
+    }
 }
 
 /// Creates an Expr from a sequence of Tokens.

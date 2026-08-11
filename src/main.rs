@@ -283,4 +283,14 @@ mod test {
 
         assert_eq!(atom, expected);
     }
+
+    #[test]
+    fn eval_nested_addition() {
+        let input = "(+ (+ 3 2) 7)";
+        let expected = 16;
+        let tokens = tokenize(input);
+        let eval = Expr::from(tokens).eval();
+
+        assert_eq!(eval.unwrap(), expected);
+    }
 }

@@ -1,8 +1,10 @@
-- Support recursive `eval` for nested `Form`s
+- ~~Support `eval` of nested `Form`s via recursion~~
 
 - Apply given operator for `eval` instead of hardcoded +
 
-- Remove `panic`s in `eval`
+- Handle `Expr` that are a single `Atom::String(s)`
+
+- Remove remaining `panic`s in `eval`
 
 - Handle empty list `()` via `List::Empty`
 

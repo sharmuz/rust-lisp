@@ -1,7 +1,7 @@
 use std::error::Error;
 
 fn main() {
-    let input = "(+ (+ 1 2) 3)";
+    let input = "(+ (+ 1 (+ 2 5)) 3)";
     println!("Input is: {input}");
     let tokens = tokenize(input);
     println!("Tokens are: {tokens:?}");
@@ -52,22 +52,12 @@ enum Expr {
 impl Expr {
     fn eval(&self) -> Result<isize, Box<dyn Error>> {
         match self {
-            Self::Atom(a) => match a {
-                Atom::Number(n) => Ok(n.clone()),
-                _ => panic!("Invalid!"),
-            },
-            Self::List(list) => {
-                match list {
-                    List::Form(f) => Ok(f.args.iter().fold(0, |acc, x| match x {
-                        Self::Atom(a) => match a {
-                            Atom::Number(n) => acc + n,
-                            _ => panic!("Invalid!"),
-                        },
-                        _ => panic!("Invalid!")
-                    })),
-                    List::Data(_) => panic!("Invalid"),
-                }
+            Self::Atom(Atom::Number(n)) => Ok(*n),
+            Self::List(List::Form(f)) => {
+                Ok(f.args.iter().fold(0, |acc, x| acc + x.eval().unwrap()))
             }
+            Self::List(List::Data(_)) => panic!("Invalid"),
+            _ => panic!("Invalid!"),
         }
     }
 }
@@ -286,7 +276,7 @@ mod test {
 
     #[test]
     fn eval_nested_addition() {
-        let input = "(+ (+ 3 2) 7)";
+        let input = "(+ (+ 3 6) 7)";
         let expected = 16;
         let tokens = tokenize(input);
         let eval = Expr::from(tokens).eval();

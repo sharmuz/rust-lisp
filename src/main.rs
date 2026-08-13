@@ -1,7 +1,7 @@
 use std::error::Error;
 
 fn main() {
-    let input = "(+ (+ 1 (+ 2 5)) 3)";
+    let input = "(- (+ 9 (/ 6 1)) (* 2 (/ 5 2)))";
     println!("Input is: {input}");
     let tokens = tokenize(input);
     println!("Tokens are: {tokens:?}");
@@ -53,9 +53,22 @@ impl Expr {
     fn eval(&self) -> Result<isize, Box<dyn Error>> {
         match self {
             Self::Atom(Atom::Number(n)) => Ok(*n),
-            Self::List(List::Form(f)) => {
-                Ok(f.args.iter().fold(0, |acc, x| acc + x.eval().unwrap()))
-            }
+            Self::List(List::Form(f)) => match &f.operator {
+                Atom::Symbol(s) => Ok(f
+                    .args
+                    .iter()
+                    .map(|exp| exp.eval().unwrap())
+                    .reduce(|acc, x| match s.as_str() {
+                        "+" => acc + x,
+                        "-" => acc - x,
+                        "*" => acc * x,
+                        "/" => acc / x,
+                        _ => panic!("Invalid!"),
+                    })
+                    .ok_or(0)
+                    .unwrap()),
+                _ => panic!("Invalid!"),
+            },
             Self::List(List::Data(_)) => panic!("Invalid"),
             _ => panic!("Invalid!"),
         }
@@ -281,6 +294,16 @@ mod test {
         let tokens = tokenize(input);
         let eval = Expr::from(tokens).eval();
 
-        assert_eq!(eval.unwrap(), expected);
+        assert_eq!(eval.expect("Expr should eval to isize"), expected);
+    }
+
+    #[test]
+    fn eval_nested_multi_ops() {
+        let input = "(- (* 12 3) (+ 3 (/ 17 4)) 2)";
+        let expected = 27;
+        let tokens = tokenize(input);
+        let eval = Expr::from(tokens).eval();
+
+        assert_eq!(eval.expect("Expr should eval to isize"), expected);
     }
 }

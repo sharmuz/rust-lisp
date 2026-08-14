@@ -1,14 +1,15 @@
 use std::error::Error;
 
-fn main() {
+fn main() -> Result<(), LispError> {
     let input = "(- (+ 9 (/ 6 1)) (* 2 (/ 5 2)))";
     println!("Input is: {input}");
     let tokens = tokenize(input);
     println!("Tokens are: {tokens:?}");
     let expr = Expr::from(tokens);
     println!("Expression is: {expr:?}");
-    let res = expr.eval().unwrap();
+    let res = expr.eval()?;
     println!("Result is: {res}");
+    Ok(())
 }
 
 /// Generates a sequence of tokens representing the input expression.
@@ -50,27 +51,36 @@ enum Expr {
 }
 
 impl Expr {
-    fn eval(&self) -> Result<isize, Box<dyn Error>> {
+    fn eval(&self) -> Result<isize, LispError> {
         match self {
             Self::Atom(Atom::Number(n)) => Ok(*n),
+            Self::Atom(Atom::String(_)) => {
+                Err(LispError::Unsupported("String eval not supported".into()))
+            }
+            Self::Atom(Atom::Symbol(s)) => Err(LispError::General(format!(
+                "Invalid: Cannot eval symbol {s}"
+            ))),
             Self::List(List::Form(f)) => match &f.operator {
-                Atom::Symbol(s) => Ok(f
-                    .args
-                    .iter()
-                    .map(|exp| exp.eval().unwrap())
-                    .reduce(|acc, x| match s.as_str() {
-                        "+" => acc + x,
-                        "-" => acc - x,
-                        "*" => acc * x,
-                        "/" => acc / x,
-                        _ => panic!("Invalid!"),
-                    })
-                    .ok_or(0)
-                    .unwrap()),
-                _ => panic!("Invalid!"),
+                Atom::Symbol(s) => {
+                    let mut args = f.args.iter().map(Self::eval);
+                    let first = args.next().unwrap_or_else(|| {
+                        Err(LispError::General(format!("Failed to eval expr: {f:?}")))
+                    });
+                    args
+                        .try_fold(first?, |acc, x| match s.as_str() {
+                            "+" => Ok(acc + x?),
+                            "-" => Ok(acc - x?),
+                            "*" => Ok(acc * x?),
+                            "/" => Ok(acc / x?),
+                            _ => Err(LispError::Invalid(format!("Unknown operator: {s}"))),
+                        })
+                }
+                _ => Err(LispError::Invalid(format!(
+                    "Invalid operator: {:?}",
+                    f.operator
+                ))),
             },
-            Self::List(List::Data(_)) => panic!("Invalid"),
-            _ => panic!("Invalid!"),
+            Self::List(List::Data(_)) => Err(LispError::Unsupported("List eval".into())),
         }
     }
 }
@@ -195,6 +205,25 @@ impl From<String> for Atom {
         }
     }
 }
+
+#[derive(Debug)]
+enum LispError {
+    General(String),
+    Invalid(String),
+    Unsupported(String),
+}
+
+impl std::fmt::Display for LispError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Invalid(s) => write!(f, "Invalid: {s}"),
+            Self::Unsupported(s) => write!(f, "Unsupported: {s}"),
+            Self::General(s) => write!(f, "Error: {s}"),
+        }
+    }
+}
+
+impl Error for LispError {}
 
 #[cfg(test)]
 mod test {

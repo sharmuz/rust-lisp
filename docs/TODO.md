@@ -1,10 +1,11 @@
 - ~~Support `eval` of nested `Form`s via recursion~~
 
-- Apply given operator for `eval` instead of hardcoded +
+- ~~Apply given operator for `eval` instead of hardcoded +~~
+
+- ~~Remove remaining `panic`s in `eval`~~
 
 - Handle `Expr` that are a single `Atom::String(s)`
-
-- Remove remaining `panic`s in `eval`
+    - Via a custom `LispResult` type?
 
 - Handle empty list `()` via `List::Empty`
 

@@ -5,7 +5,7 @@ fn main() -> Result<(), LispError> {
     println!("Input is: {input}");
     let tokens = tokenize(input);
     println!("Tokens are: {tokens:?}");
-    let expr = Expr::from(tokens);
+    let expr = Expr::try_from(tokens)?;
     println!("Expression is: {expr:?}");
     let res = expr.eval()?;
     println!("Result is: {res}");
@@ -54,30 +54,25 @@ impl Expr {
     fn eval(&self) -> Result<isize, LispError> {
         match self {
             Self::Atom(Atom::Number(n)) => Ok(*n),
-            Self::Atom(Atom::String(_)) => {
-                Err(LispError::Unsupported("String eval not supported".into()))
-            }
-            Self::Atom(Atom::Symbol(s)) => Err(LispError::General(format!(
-                "Invalid: Cannot eval symbol {s}"
-            ))),
+            Self::Atom(Atom::String(_)) => Err(LispError::Unsupported("String eval".into())),
+            Self::Atom(Atom::Symbol(s)) => Err(LispError::Eval(format!("Symbol `{s}`"))),
             Self::List(List::Form(f)) => match &f.operator {
                 Atom::Symbol(s) => {
                     let mut args = f.args.iter().map(Self::eval);
-                    let first = args.next().unwrap_or_else(|| {
-                        Err(LispError::General(format!("Failed to eval expr: {f:?}")))
-                    });
-                    args
-                        .try_fold(first?, |acc, x| match s.as_str() {
-                            "+" => Ok(acc + x?),
-                            "-" => Ok(acc - x?),
-                            "*" => Ok(acc * x?),
-                            "/" => Ok(acc / x?),
-                            _ => Err(LispError::Invalid(format!("Unknown operator: {s}"))),
-                        })
+                    let first = args
+                        .next()
+                        .unwrap_or_else(|| Err(LispError::Eval("Form is missing args".into())));
+                    args.try_fold(first?, |acc, x| match s.as_str() {
+                        "+" => Ok(acc + x?),
+                        "-" => Ok(acc - x?),
+                        "*" => Ok(acc * x?),
+                        "/" => Ok(acc / x?),
+                        _ => Err(LispError::Eval(format!("Unknown operator `{s}`"))),
+                    })
                 }
-                _ => Err(LispError::Invalid(format!(
-                    "Invalid operator: {:?}",
-                    f.operator
+                _ => Err(LispError::Eval(format!(
+                    "Invalid operator `{:?}`",
+                    f.operator,
                 ))),
             },
             Self::List(List::Data(_)) => Err(LispError::Unsupported("List eval".into())),
@@ -86,17 +81,17 @@ impl Expr {
 }
 
 /// Creates an Expr from a sequence of Tokens.
-///
-/// Panics if the tokens do not represent a valid LISP expression.
 #[allow(clippy::fallible_impl_from)]
-impl From<Vec<Token>> for Expr {
-    fn from(tokens: Vec<Token>) -> Self {
+impl TryFrom<Vec<Token>> for Expr {
+    type Error = LispError;
+
+    fn try_from(tokens: Vec<Token>) -> Result<Self, Self::Error> {
         match &tokens[0] {
             Token::Atom(a) => {
                 if tokens.len() > 1 {
-                    panic!("Invalid expr: atom must occur alone")
+                    Err(LispError::Parse("Atom must occur alone".into()))
                 } else {
-                    Self::Atom(a.clone())
+                    Ok(Self::Atom(a.clone()))
                 }
             }
             Token::OpenBracket => {
@@ -105,9 +100,9 @@ impl From<Vec<Token>> for Expr {
                     "Invalid expr: missing final closing bracket"
                 );
                 let op = if let Token::Atom(a) = &tokens[1] {
-                    a.clone()
+                    Ok(a.clone())
                 } else {
-                    panic!("Invalid expr: form is missing operator")
+                    Err(LispError::Parse("Form is missing operator".into()))
                 };
 
                 let mut args: Vec<Self> = Vec::new();
@@ -132,18 +127,21 @@ impl From<Vec<Token>> for Expr {
                             partial_arg.push(t.clone());
 
                             if num_open_brackets == 0 {
-                                let next_arg = Self::from(partial_arg.clone());
+                                let next_arg = Self::try_from(partial_arg.clone())?;
                                 args.push(next_arg);
                                 partial_arg.clear();
                             }
                         }
                     }
                 }
-                Self::List(List::Form(Form { operator: op, args }))
+                Ok(Self::List(List::Form(Form {
+                    operator: op?,
+                    args,
+                })))
             }
-            Token::CloseBracket => {
-                panic!("Invalid expr: cannot start with closing bracket")
-            }
+            Token::CloseBracket => Err(LispError::Parse(
+                ("Cannot start with closing bracket").into(),
+            )),
         }
     }
 }
@@ -208,17 +206,17 @@ impl From<String> for Atom {
 
 #[derive(Debug)]
 enum LispError {
-    General(String),
-    Invalid(String),
+    Eval(String),
+    Parse(String),
     Unsupported(String),
 }
 
 impl std::fmt::Display for LispError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Invalid(s) => write!(f, "Invalid: {s}"),
+            Self::Eval(s) => write!(f, "Failed to evaluate: {s}"),
+            Self::Parse(s) => write!(f, "Failed to parse: {s}"),
             Self::Unsupported(s) => write!(f, "Unsupported: {s}"),
-            Self::General(s) => write!(f, "Error: {s}"),
         }
     }
 }
@@ -302,7 +300,7 @@ mod test {
                 ],
             }))],
         }));
-        let expr = Expr::from(tokens);
+        let expr = Expr::try_from(tokens).expect("Tokens should be parseable");
 
         assert_eq!(expr, expected);
     }
@@ -321,7 +319,9 @@ mod test {
         let input = "(+ (+ 3 6) 7)";
         let expected = 16;
         let tokens = tokenize(input);
-        let eval = Expr::from(tokens).eval();
+        let eval = Expr::try_from(tokens)
+            .expect("Tokens should be parseable")
+            .eval();
 
         assert_eq!(eval.expect("Expr should eval to isize"), expected);
     }
@@ -331,7 +331,9 @@ mod test {
         let input = "(- (* 12 3) (+ 3 (/ 17 4)) 2)";
         let expected = 27;
         let tokens = tokenize(input);
-        let eval = Expr::from(tokens).eval();
+        let eval = Expr::try_from(tokens)
+            .expect("Tokens should be parseable")
+            .eval();
 
         assert_eq!(eval.expect("Expr should eval to isize"), expected);
     }

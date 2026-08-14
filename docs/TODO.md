@@ -5,7 +5,7 @@
 - ~~Remove remaining `panic`s in `eval`~~
 
 - Handle `Expr` that are a single `Atom::String(s)`
-    - Via a custom `LispResult` type?
+    - Via a custom `LispValue` type?
 
 - Handle empty list `()` via `List::Empty`
 
@@ -15,6 +15,10 @@
 
 - Support `'` and `quote` to create `List::Data(Data)`
 
-- Support `let` and `lambda`
+- Support `lambda` for definitions
+
+- Support `define` for persistent variables
+
+- Support `let` for scoped variables
 
 - Handle escape sequences in strings

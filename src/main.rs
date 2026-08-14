@@ -2,13 +2,13 @@ use std::error::Error;
 
 fn main() -> Result<(), LispError> {
     let input = "(- (+ 9 (/ 6 1)) (* 2 (/ 5 2)))";
-    println!("Input is: {input}");
+    println!("\nInput is: {input}");
     let tokens = tokenize(input);
-    println!("Tokens are: {tokens:?}");
+    println!("\nTokens are: {tokens:?}");
     let expr = Expr::try_from(tokens)?;
-    println!("Expression is: {expr:?}");
+    println!("\nExpression is: {expr:?}");
     let res = expr.eval()?;
-    println!("Result is: {res}");
+    println!("\nEvaluated to: {res}");
     Ok(())
 }
 
